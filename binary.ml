@@ -56,12 +56,25 @@ let rec n2p n=
   in match q with
      | O -> (match r with One -> XH)
      | S h -> XC (n2p q, r);;
-
+     
 let t n=
   n2p (i2n n);;
   
 t 1023;;
 
+type bin = BZ | BP : pos -> bin;;
+
+let n2b n=
+  match n with 
+  | O -> BZ
+  | S _ -> BP (n2p n);;
+
+let b2n b=
+  match b with
+  | BZ -> O
+  | BP p -> p2n p;; 
+
+n2b (i2n 3)
 
 
 
