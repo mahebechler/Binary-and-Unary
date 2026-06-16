@@ -76,9 +76,69 @@ let b2n b=
 
 n2b (i2n 3)
 
+let addb a b c= 
+  match (a, b, c) with
+  | Zero,Zero,Zero -> (Zero, Zero)
+  | Zero, Zero, One -> (Zero, One)
+  | Zero, One, Zero -> (Zero, One)
+  | Zero, One, One -> (One, Zero)
+  | One, Zero, Zero -> (Zero, One)
+  | One, Zero, One -> (One, Zero)
+  | One, One, Zero -> (One, Zero)
+  | One, One, One -> (One, One);;
+  
+addb One One One;;
+
+let rec succp p=
+  match p with
+   |XC(q,Zero) -> XC(q, One)
+   |XC(q, One) -> XC(succp q, Zero)
+   |XH -> XC (XH, Zero);;
+
+addp (XC (XC (XH, Zero), Zero)) XH Zero ;;
+
+let addpb p b=
+  match b with 
+  | Zero -> p
+  | One -> succp p ;;
 
 
+let rec addp x y c=
+  match (x,y) with
+  |XC (p, a), XC (q, b)
+    -> let (r,s)= addb a b c in
+       let pqr= addp p q r
+       in XC (pqr, s)
+  |XH, XH
+    -> let (_,s)= addb One One c
+       in XC(XH,s) 
+  |XC (p, a), XH
+    -> let (r,s)= addb a One c in
+       let pqr= addpb p r 
+       in XC (pqr, s)
+  |XH, XC(q, b)
+    -> let (r,s)= addb One b c in 
+       let pqr= addpb q r
+       in XC (pqr, s);;    
 
+
+ let t n m f=
+    (n2i (p2n (addp (n2p (i2n n)) (n2p (i2n m)) Zero)));;
+
+
+let i2p n=
+  n2p (i2n n);;
+  
+let p2i _n=
+   n2i (p2n _n);;
+
+8 = (XC(XC (XC (XH, Zero), Zero), Zero))
+
+addp (XC(XC (XC (XH, Zero), Zero), Zero)) (XC(XC(XH, Zero), Zero)) Zero ;;
+
+addp (XC(XC(XH, One), One)) (XC(XC(XC(XH, Zero),One),Zero)) Zero;;
+
+addp (XC(XC (XC (XH, Zero), Zero), Zero)) (XC (XH, One)) Zero ;;
 
 
 
