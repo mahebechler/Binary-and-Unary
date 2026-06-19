@@ -1,89 +1,142 @@
-let rec fib n = if n <= 1 then 1 else fib (n-1)+fib (n-2);;
+let rec fib n = if n <= 1 then 1 else fib (n-1)+fib (n-2);; (* suite de fibonacci *)
 
-type nat = O | S : nat -> nat;;
+(** type entier unaire*)
+type nat = O | S : nat -> nat;; 
 
+(*  l'addition en unaire 
+    plus : nat -> (nat -> nat)
+*) 
 let rec plus a b =
   match a with
   | O    -> b
-  | S a' -> S (plus a' b);;
+  | S a' -> S (plus a' b);; 
   
+(* traduction
+   i2n : int -> nat  
+*)  
 let rec i2n i =
-  if i = 0 then O else S (i2n (i-1));;
+  if i = 0 then O else S (i2n (i-1));; 
   
+(* traduction inverse 
+  n2i : nat -> int
+*)  
 let rec n2i a =
   match a with
   | O    -> 0
-  | S a' -> 1+(n2i a');;
+  | S a' -> 1+(n2i a');; 
   
+(* la multiplication en unaire 
+   mult : nat -> nat -> nat
+*)  
 let rec mult a b =
   match a with
   | O    -> O
-  | S a' -> plus b (mult a' b);;
-
+  | S a' -> plus b (mult a' b);; 
+  
+(* l'exponentielle en unaire 
+   exp : nat -> nat (la puissance) -> nat 
+*)
 let rec exp b a =
   match a with
   | O    -> S O
   | S a' -> mult b (exp b a');;
   
-n2i(exp (i2n 2) (i2n 10));;
+  
+(* test de l'exponentielle -> 2**10=1024 *)  
+n2i(exp (i2n 2) (i2n 10));;  
 
-type bit = Zero | One;;
-type pos = XH : pos | XC : pos * bit -> pos;;
+(** nouveau type les bit :
+  0 ou 1 
+*)
+type bit = Zero | One;; 
 
+(** nouveau type les eniters binaires positifs : 
+   XH -> 1
+   XC(XH, Zero/One) -> 2q + 0/1 
+   Ex : 1011 -> XC(XC(XC(XH,Zero),One),One)
+*)
+type pos = XH : pos | XC : pos * bit -> pos;; 
+
+
+(*  traduction des bit vers les nat :
+    b2n : bit -> nat
+*)
 let b2n b =
   match b with
   | Zero  -> O
   | One  -> S O;;
-  
+     
+(*  traduction des positifs vers les nat -> manque 0 pas inclu dans les pos 
+    p2n : pos -> nat
+*)  
 let rec p2n p=
   match p with
   | XH  -> S O
   | XC (q,b) -> plus (b2n b) (mult (S (S O))  (p2n q)) ;;
+   
+(* test de trad -> 3 *)     
+p2n (XC(XH,One));; 
 
-p2n (XC(XH,One));;
-
-
-let i2p n=
-  n2p (i2n n);;
-  
-let p2i _n=
-   n2i (p2n _n);;
-
-
-
+(* la division par 2 
+   div2 : nat -> nat * bit
+*)
 let rec div2 a=
   match a with
   | O -> (O,Zero)
-  | S O -> (O,One)
+  | S O -> (O,One)				 
   | S(S n)  -> let (q, r) = div2 n in (S q, r);;
-
-let t n=
-  let (q, r) = div2 (i2n n) in (n2i q, r);;
-
+  
+(* traduction des nat vers les positifs en excluant 0 -> produit une exception si appeler en 0
+   n2p : nat -> pos
+ *)    
 let rec n2p n=
   let (q, r) = div2 n 
   in match q with
      | O -> (match r with One -> XH)
-     | S h -> XC (n2p q, r);;
+     | S h -> XC (n2p q, r);; 
      
-let t n=
-  n2p (i2n n);;
+(* traduction des plus utiles des int vers les positifs
+   i2p : int -> pos
+*)
+let i2p n=
+  n2p (i2n n);; 
   
-t 1023;;
+(* et inversement ...
+   p2i : pos -> int
+ *)  
+let p2i _n=
+   n2i (p2n _n);; 
+   
+(* test avec le quotient en int
+   t : int -> int * bit
+ *)
+let t n=
+  let (q, r) = div2 (i2n n) in (n2i q, r);; 
+  
+(** nouveau type les bin, 
+   BZ -> 0 et BP -> un bin positif (prend un pos en parametre)
+*)
+type bin = BZ | BP : pos -> bin;; 
 
-type bin = BZ | BP : pos -> bin;;
-
+(* trd. des nat vers les bin 
+   n2b : nat -> bin
+*)
 let n2b n=
   match n with 
   | O -> BZ
-  | S _ -> BP (n2p n);;
-
+  | S _ -> BP (n2p n);; 
+  
+(* et inversement...
+   b2n : bin -> nat
+*)
 let b2n b=
   match b with
   | BZ -> O
   | BP p -> p2n p;; 
 
-
+(* addition de 2 bits (a et b) et d'une potentielle retenue c 
+   addb : bit -> bit -> bit -> bit * bit 
+*)
 let addb a b c= 
   match (a, b, c) with
   | Zero,Zero,Zero -> (Zero, Zero)
@@ -93,24 +146,31 @@ let addb a b c=
   | One, Zero, Zero -> (Zero, One)
   | One, Zero, One -> (One, Zero)
   | One, One, Zero -> (One, Zero)
-  | One, One, One -> (One, One);;
+  | One, One, One -> (One, One);; 
   
-addb One One One;;
+(* test 1 + 1 + 1 = 3 soit One One *)  
+addb One One One;; 
 
+(* le successeur d'un positif 
+   succp : pos -> pos 
+*)
 let rec succp p=
   match p with
    |XC(q,Zero) -> XC(q, One)
    |XC(q, One) -> XC(succp q, Zero)
-   |XH -> XC (XH, Zero);;
-
-addp (XC (XC (XH, Zero), Zero)) XH Zero ;;
-
+   |XH -> XC (XH, Zero);; 
+   
+(* additionner 0 ou 1 à un pos grâce au successeur pour les retenues
+   addpb : pos -> bit -> pos 
+*)
 let addpb p b=
   match b with 
   | Zero -> p
   | One -> succp p ;;
 
-
+(* addition de 2 pos et une retenue en bit 
+   addp : pos -> pos -> bit -> pos
+*)
 let rec addp x y c=
   match (x,y) with
   |XC (p, a), XC (q, b)
@@ -127,60 +187,86 @@ let rec addp x y c=
   |XH, XC(q, b)
     -> let (r,s)= addb One b c in 
        let pqr= addpb q r
-       in XC (pqr, s);;    
+       in XC (pqr, s);; 
 
+(* trd. des bits vers les bin 
+   b2b : bit -> bin
+*)
 let b2b x=
   match x with
   | Zero -> BZ
-  | One -> BP(XH);;
+  | One -> BP(XH);; 
 
-
+(* addition de 2 bin et une retenue en bit 
+   addbin : bin -> bin -> bit -> bin
+*)
 let addbin x y c =
   match (x,y) with
   | BZ, BZ -> b2b c 
   | BZ, BP b -> BP (addpb b c)
   | BP a, BZ -> BP (addpb a c) 
-  | BP a, BP b -> BP (addp a b c) ;;
-
- let t n m f=
+  | BP a, BP b -> BP (addp a b c) ;; 
+  
+(* test addp 
+   t : int -> int -> int 
+*)
+ let t n m =
     (n2i (p2n (addp (n2p (i2n n)) (n2p (i2n m)) Zero)));;
 
-
+(* test en pos -> 8 + 4 = 12 *)
 addp (XC(XC (XC (XH, Zero), Zero), Zero)) (XC(XC(XH, Zero), Zero)) Zero ;;
-
+(* test en pos -> 7 + 10 = 17 *)
 addp (XC(XC(XH, One), One)) (XC(XC(XC(XH, Zero),One),Zero)) Zero;;
-
+(* test en pos -> 8 + 3 = 11 *)
 addp (XC(XC (XC (XH, Zero), Zero), Zero)) (XC (XH, One)) Zero ;;
 
+(* multiplication de bit -> 4 cas 0*1, 1*0, 0*0 et 1*1
+   multb : bit -> bit -> bit
+*)
 let multb a b=
   match a with
   | Zero -> Zero
-  | One -> b ;;
+  | One -> b ;; 
   
+(* multiplication de 2 pos grâce à l'addition et aux appelles récursifs 
+   multp pos -> pos -> pos
+*)  
 let rec multp x y=
   match x with
   | XC(p,Zero) -> XC ( multp p y, Zero)
   | XC(p, One) -> (addp y (XC(multp p y,Zero)) Zero) 
-  | XH -> y ;;
+  | XH -> y ;; 
 
+(* multiplication de 2 bin
+  multbin : bin -> bin -> bin
+*)
 let multbin x y=
   match (x,y) with 
   | _,BZ -> BZ
   | BZ,_ -> BZ
-  | BP(m),BP(n) -> BP (multp m n) ;;
+  | BP(m),BP(n) -> BP (multp m n) ;; 
 
+(* test multp en int 
+   test : int -> int -> int 
+*)
 let test x y=
-  p2i (multp (i2p x) (i2p y));;
+  p2i (multp (i2p x) (i2p y));; 
   
-type diff = Neg : pos -> diff | Eq | Pos : pos -> diff
+(** Nouveau type les diff, permettent de comparer/soustraire 2 pos  
+    Neg -> a < b | Eq -> a = b | Pos -> a > b
+*) 
+type diff = Neg : pos -> diff | Eq | Pos : pos -> diff 
 
-
+(* trd. des diff vers les int 
+   d2i : diff -> int 
+*)
 let d2i x= 
   match x with 
-  | Neg d -> - (p2i d)
-  | Eq -> 0
-  | Pos d -> p2i d ;;
-
+  | Neg d -> - (p2i d) (* < *)
+  | Eq -> 0  (* = *)
+  | Pos d -> p2i d ;; (* > *) 
+  
+(* predecesseur d'un pos incluant 0 (None) mais passant au type Some pos *)
 (*
 let rec predp x=
   match x with
@@ -190,21 +276,21 @@ let rec predp x=
     match predp d with
     | None   -> Some XH
     | Some p -> Some (XC (p,One));;
-    *)
+    *) 
     
 let rec predp x=
   match x with
   | XC(d, One)   -> XC(d, Zero)
   | XC(XH, Zero) -> XH
-  | XC(d,Zero)   -> XC (predp d,One);;
+  | XC(d,Zero)   -> XC (predp d,One);; (* predecesseur sans 0 mais qu'avec les pos *)
 
-let t x = p2i (predp (i2p x));;
+let t x = p2i (predp (i2p x));; (* test pred *)
 
 let diffb a b =
   match (a, b) with
   | One, Zero -> Pos XH
   | Zero, One -> Neg XH
-  | _, _ -> Eq;;
+  | _, _ -> Eq;; (* différence/comparaison de 2 bit *)
 
 let rec diffp x y=
   match (x,y) with
@@ -221,7 +307,7 @@ let rec diffp x y=
     | Pos d -> Pos (match diffb a b with
       | Neg _ -> predp (XC (d,Zero))
       | Eq    -> XC (d,Zero)
-      | Pos _ -> XC (d,One));; 
+      | Pos _ -> XC (d,One));;  (* différence/comparaison 2 pos *)
 
 let diffbin x y= 
   match (x,y) with 
