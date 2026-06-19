@@ -42,6 +42,15 @@ let rec p2n p=
 
 p2n (XC(XH,One));;
 
+
+let i2p n=
+  n2p (i2n n);;
+  
+let p2i _n=
+   n2i (p2n _n);;
+
+
+
 let rec div2 a=
   match a with
   | O -> (O,Zero)
@@ -74,7 +83,6 @@ let b2n b=
   | BZ -> O
   | BP p -> p2n p;; 
 
-n2b (i2n 3)
 
 let addb a b c= 
   match (a, b, c) with
@@ -126,24 +134,17 @@ let b2b x=
   | Zero -> BZ
   | One -> BP(XH);;
 
+
 let addbin x y c =
   match (x,y) with
   | BZ, BZ -> b2b c 
-  | BZ, BP b -> BP b 
-  | BP a, BZ -> BP a 
+  | BZ, BP b -> BP (addpb b c)
+  | BP a, BZ -> BP (addpb a c) 
   | BP a, BP b -> BP (addp a b c) ;;
 
  let t n m f=
     (n2i (p2n (addp (n2p (i2n n)) (n2p (i2n m)) Zero)));;
 
-
-let i2p n=
-  n2p (i2n n);;
-  
-let p2i _n=
-   n2i (p2n _n);;
-
-8 = (XC(XC (XC (XH, Zero), Zero), Zero))
 
 addp (XC(XC (XC (XH, Zero), Zero), Zero)) (XC(XC(XH, Zero), Zero)) Zero ;;
 
@@ -239,7 +240,7 @@ let mult2b b =
   | BZ -> BZ
   | BP p -> BP (XC (p,Zero));; 
 
-let div x d=
+let rec div x d=
   match x with
   |XH -> (match d with 
          | XH -> (BP XH, BZ)
@@ -260,6 +261,36 @@ let div x d=
             | Pos k   -> (addbin (mult2b q) BZ One, BP k) ;;
 
 let t x d = div (i2p x) (i2p d) ;;
+
+let b2p x=
+  match x with
+  | BP a -> a ;;
+
+let rec base x b = 
+  let (q,r) = div x b in
+  match q with
+  | BZ -> [r] 
+  | _ -> let l = base (b2p q) b in l@[r] ;;
+
+let bl2i x=
+  match x with
+  | [ BZ] -> [0]
+  | [BP a] -> [p2i a] 
+  | [ BP a ; BZ] -> [p2i a ; 0]
+  | [ BP a ; BP b] -> [p2i a ; p2i b]
+  | [ BP a ; BZ; BZ] -> [p2i a ; 0; 0]
+  | [ BP a ; BZ; BP c] -> [p2i a ; 0; p2i c]
+  | [ BP a ; BP b; BZ] -> [p2i a ; p2i b; 0]
+  | [ BP a ; BP b; BP c] -> [p2i a ; p2i b; p2i c];; 
+
+let t x b= base (i2p x) (i2p b);;
+
+let t2 x b= bl2i (base (i2p x) (i2p b));;
+
+base (XC(XC(XH,Zero),One)) (XC(XH,One)) ;;
+
+
+
 
 
 
