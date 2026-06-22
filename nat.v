@@ -182,13 +182,13 @@ Fixpoint div2 x :=
   | S(S n) => let (q, r) := div2 n in (S q, r)
   end.
   
-Definition b2n b :=
+Definition bit2n b :=
   match b with
   | Zero => O
   | One => S O
   end.
 
-Fact div2_spec x : let (q,r) := div2 x in plusn ( b2n r) (multn (S (S O)) q) = x.
+Fact div2_spec x : let (q,r) := div2 x in plusn (bit2n r) (multn (S (S O)) q) = x.
 Proof.
   induction x as [ | | n IH ] using nat_ind2.
   + simpl.
@@ -201,6 +201,30 @@ Proof.
     simpl in IH.
     rewrite !plusn_comm_S, IH.
     split; trivial.
+Qed.
+
+Require Import Arith Lia.
+
+Fact plusn_multn_S a q : plusn a (multn 2 (S q)) = S (S (plusn a (multn 2 q))).
+Proof. simpl; rewrite !plusn_comm_S; trivial. Qed.
+
+Fact div2_invert q r : (q,r) = div2 (plusn (bit2n r) (multn 2 q)).
+Proof.
+  induction q as [ | q IH ] in r |- *.
+  + destruct r; simpl; auto.
+  + assert (plusn (bit2n r) (multn 2 (S q)) = S (S (plusn (bit2n r) (multn 2 q)))) as E.
+    * lia.
+    * rewrite E; unfold div2; fold div2.
+      now rewrite <- IH.
+Qed.
+
+Fact div2_inv_inj r p s q : plusn (bit2n r) (multn 2 p) = plusn (bit2n s) (multn 2 q) -> r = s /\ p = q.
+Proof.
+  generalize (div2_invert p r) (div2_invert q s).
+  intros E1 E2 H.
+  rewrite H in E1.
+  rewrite <- E2 in E1.
+  now inversion E1.
 Qed.
 
 Inductive pos := XH | XC : pos -> bit -> pos.
@@ -229,8 +253,11 @@ Fixpoint succp p :=
 Fixpoint p2n p :=
   match p with
   | XH => S O
-  | XC q b => plusn (b2n b) (multn (S( S O)) (p2n q))
+  | XC q b => plusn (bit2n b) (multn (S( S O)) (p2n q))
   end.
+  
+Fact p2n_fix q b : p2n (XC q b) = plusn (bit2n b) (multn (S (S O)) (p2n q)).
+Proof. trivial. Qed.
 
 Fact succp_spec p : p2n (succp p) = S (p2n p).
 Proof.
@@ -247,9 +274,126 @@ Proof.
       trivial.
 Qed.
 
-Require Import Arith.
+Require Import Arith Lia.
 
-Check lt_wf.
+Inductive n2p_graph : nat -> pos -> Prop :=
+  | n2p_g0 n : (O,One) = div2 n -> n2p_graph n XH  
+  | n2p_g1 n q r o : (S q,r) = div2 n -> n2p_graph (S q) o -> n2p_graph n (XC o r).
+  
+Fact n2p_fun n m o1 o2 : n2p_graph n o1 -> n2p_graph m o2 -> n = m -> o1 = o2.
+Proof.
+  induction 1 as [ n Hn | n p r1 o1 E1 H1 IH1 ] in m, o2 |- *;
+    destruct 1 as [ m Hm | m q r2 o2 E2 H2 ]; intros E; auto.
+  + subst; now rewrite <- E2 in Hn.
+  + subst; now rewrite <- E1 in Hm.
+  + subst.
+    rewrite <- E2 in E1.
+    inversion E1; subst; f_equal.
+    apply IH1 with (2 := eq_refl); auto.
+Qed.
+
+Definition not_O n := match n with O => False | S _ => True end.
+
+Definition n2p_pwc n : not_O n -> { o | n2p_graph n o }.
+Proof.
+  induction n as [ n IHn ] using (well_founded_induction lt_wf).
+  generalize (div2_spec n); intros H1 H2.
+  case_eq (div2 n); intros q r E.
+  rewrite E in H1.
+  + case_eq q.
+    * intros ->; destruct r; simpl in H1; subst.
+      - destruct H2.
+      - exists XH; constructor; trivial.
+    * intros q' Hq'; destruct (IHn q) as [ o Ho ].
+      - subst; lia.
+      - subst; red; trivial.
+      - subst; exists (XC o r); constructor 2 with q'; auto.
+Qed.
+
+Require Import Extraction.
+
+Definition n2p n hn := proj1_sig (n2p_pwc n hn).
+
+Fact n2p_spec n hn : n2p_graph n (n2p n hn).
+Proof. apply (proj2_sig _). Qed.
+
+Fact n2p_fix_1 h : n2p 1 h = XH.
+Proof.
+  apply n2p_fun with (1 := n2p_spec _ _) (3 := eq_refl).
+  constructor 1; auto.
+Qed.
+
+Fact n2p_fix_2 n hn q hq r : (q,r) = div2 n -> n2p n hn = XC (n2p q hq) r.
+Proof.
+  intros E.
+  apply n2p_fun with (1 := n2p_spec _ _) (3 := eq_refl).
+  destruct q as [ | q ].
+  + destruct hq.
+  + constructor 2 with q; auto.
+    apply n2p_spec.
+Qed.
+
+Fact p2n_not_O p : not_O (p2n p).
+Proof.
+  induction p as [ | p IHq [] ]; simpl; trivial.
+  destruct (p2n p); simpl in *; trivial.
+Qed.
+
+Fact p2n_n2p n hn : p2n (n2p n hn) = n.
+Proof.
+  generalize (n2p n hn) (n2p_spec n hn).
+  induction 1 as [ n E | n q r o E H IH ].
+  + generalize (div2_spec n).
+    rewrite <- E; simpl; auto.
+  + generalize (div2_spec n).
+    rewrite <- E.
+    simpl in IH.
+    simpl p2n.
+    rewrite IH; trivial.
+Qed.
+
+Fact n2p_p2n p hp : n2p (p2n p) hp = p.
+Proof.
+  induction p as [ | p IH r ].
+  + simpl.
+    apply n2p_fix_1.
+  + revert hp; rewrite p2n_fix; intros hp.
+    rewrite n2p_fix_2 with (q := p2n p) (hq := p2n_not_O _) (r := r).
+    * f_equal; auto.
+    * generalize (p2n p); intros n.
+      apply div2_invert.
+Qed.
+
+Definition b2n b :=
+  match b with
+  | BZ   => 0
+  | BP p => p2n p
+  end.
+
+Definition n2b n :=
+  match n with
+  | O   => BZ
+  | S q => BP (n2p (S q) I)
+  end.
+
+Fact b2n_n2b n : b2n (n2b n) = n.
+Proof.
+  destruct n; simpl; auto.
+  apply p2n_n2p.
+Qed.
+
+Fact n2b_b2n b : n2b (b2n b) = b.
+Proof.
+  destruct b; simpl; auto.
+  unfold n2b.
+  generalize (p2n_not_O p) (n2p_p2n p (p2n_not_O _)).
+  destruct (p2n p); simpl.
+  + intros [].
+  + intros [] <-; trivial.
+Qed.
+
+Extraction Inline n2p_pwc.
+Recursive Extraction n2b b2n.
 
 Fixpoint n2p_fuel n c :=
   match c with
