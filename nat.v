@@ -1,11 +1,17 @@
-Inductive nat := O : nat | S : nat -> nat.
+(* Inductive nat := O : nat | S : nat -> nat. *)
 Check nat.
 
+(*
 Fixpoint plusn x y :=
   match x with 
   | O    => y
   | S x' => S (plusn x' y)
   end. 
+  *)
+  
+Print Nat.add.
+
+Abbreviation plusn := Nat.add.
 
 Check plusn (S O) O.
 Eval compute in (plusn (S O) (S O)).
@@ -55,11 +61,17 @@ Proof.
     trivial.
 Qed.
 
+(*
 Fixpoint multn x y :=
   match x with 
   | O    => O
   | S x' => plusn y (multn x' y)
   end.
+*)
+
+Abbreviation multn := Nat.mul.
+
+Print multn.
 
 Fact absorb_element_Ol m : multn O m = O.
 Proof.
@@ -235,14 +247,152 @@ Proof.
       trivial.
 Qed.
 
-Fixpoint n2p n :=
-  let (q, r) := div2 n 
-  in match q with
-     | O => match r with 
+Require Import Arith.
+
+Check lt_wf.
+
+Fixpoint n2p_fuel n c :=
+  match c with
+  | O    => None
+  | S c' => let (q, r) := div2 n in
+     match q with
+     | O =>
+        match r with 
         | Zero => None
-        | One => Some XH end
-     | S h => Some XC (Some(n2p  q)) r
-     end. 
+        | One => Some XH
+        end
+     | S _ => match n2p_fuel q c' with
+              | None   => None
+              | Some p => Some (XC p r)
+              end
+     end
+   end.
+
+Definition n2p n := n2p_fuel n (S n).
+
+Fact div2_lt n : let (q,r) := div2 n in q = 0 \/ q < n.
+Proof.
+  induction n as [ | | n IHn ] using nat_ind2; simpl.
+  + now left.
+  + now left.
+  + destruct (div2 n) as (q,r).
+    destruct IHn as [ IHn | IHn ].
+    * subst.
+      right.
+      red.
+      do 2 apply le_n_S.
+      apply le_0_n.
+    * right.
+      apply le_n_S.
+      apply Nat.le_trans with (1 := IHn).
+      apply Nat.le_succ_diag_r.
+Qed.
+
+Fact n2p_O : n2p O = None.
+Proof.
+  unfold n2p; simpl.
+  trivial.
+Qed.
+
+Fact n2p_SO : n2p (S O) = Some XH.
+Proof. trivial. Qed.
+
+Require Import Lia.
+
+Fact n2p_fuel_S_Some n c :
+  S n < c ->
+  match n2p_fuel (S n) c with
+  | Some _ => True
+  | None => False
+  end.
+Proof.
+  induction c as [ | c IHc ] in n |- *.
+  + lia.
+  + intros Hnc.
+    unfold n2p_fuel; fold n2p_fuel.
+    generalize (div2_spec (S n)).
+    intros Hn.
+    destruct (div2 (S n)) as (q,r).
+    destruct q as [ | q ].
+    * destruct r.
+      - simpl in Hn.
+        discriminate.
+      - trivial.
+    * specialize (IHc q).
+      destruct (n2p_fuel (S q) c).
+      - trivial.
+      - apply IHc.
+        apply le_S_n.
+        apply Nat.le_trans with (2 := Hnc).
+        apply le_n_S.
+        rewrite <- Hn.
+        lia.
+Qed.
+
+Fact n2p_Some n c d : 
+  match n2p_fuel n c, n2p_fuel n d with 
+  | Some r1, Some r2 => r1 = r2
+  | _, _ => True
+  end.
+Proof.
+  induction c as [ | c IHc ] in n, d |- *.
+  + simpl; trivial.
+  + destruct d as [ | d ].
+    * simpl n2p_fuel at 2.
+      destruct (n2p_fuel n (S c)); trivial.
+    * simpl.
+      destruct (div2 n) as (q,r).
+      destruct q as [ | q ].
+      - destruct r; trivial.
+      - specialize (IHc (S q) d).
+        destruct (n2p_fuel (S q) c); trivial.
+        destruct (n2p_fuel (S q) d); trivial.
+        now subst.
+Qed.
+
+Fact n2p_n n :
+  n2p n = let (q,r) := div2 n in
+  match q with
+  | O =>
+    match r with 
+    | Zero => None
+    | One => Some XH
+    end
+  | S _ =>
+    match n2p q with
+    | None   => None
+    | Some p => Some (XC p r)
+    end
+  end.
+Proof.
+  unfold n2p at 1.
+  simpl.
+  generalize (div2_lt n).
+  intros Hn.
+  destruct (div2 n) as (q,r).
+  destruct q as [ | q ].
+  + trivial.
+  + unfold n2p.
+    destruct Hn as [ Hn | Hn ].
+    * discriminate.
+    * generalize (n2p_Some (S q) n (S (S q)))
+                 (n2p_fuel_S_Some q n Hn)
+                 (n2p_fuel_S_Some q (S (S q))).
+      intros H1 H2 H3.
+      destruct (n2p_fuel (S q) n);
+      destruct (n2p_fuel (S q) (S (S q))).
+      - intros; subst; auto.
+      - exfalso.
+        lia.
+      - destruct H2.
+      - destruct H2.
+Qed. 
+
+Check n2p_O.
+Check n2p_SO.
+Check n2p_n.
+
+Opaque n2p.
 
 
 Definition addpb p b :=
