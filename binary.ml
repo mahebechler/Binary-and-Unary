@@ -15,7 +15,7 @@ let rec plus a b =
    i2n : int -> nat  
 *)  
 let rec i2n i =
-  if i = 0 then O else S (i2n (i-1));; 
+  if i = 0 then O else S (i2n (i-1));;
   
 (* traduction inverse 
   n2i : nat -> int

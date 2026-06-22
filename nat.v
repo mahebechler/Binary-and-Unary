@@ -127,6 +127,13 @@ Proof.
   trivial.
 Qed.
 
+Fact lien_mult_add_2 n : plusn n n = multn n 2.
+  induction n as [ | n IH ].
+   + trivial.
+   + simpl. rewrite plusn_comm_S, IH.
+  trivial.
+Qed.
+
 Fact multn_distrib x y z : multn x (plusn y z) = plusn (multn x y) (multn x z).
 Proof.
   induction x as [ | x IH ].
@@ -181,7 +188,7 @@ Fixpoint div2 x :=
   | S O => (O, One)
   | S(S n) => let (q, r) := div2 n in (S q, r)
   end.
-  
+
 Definition b2n b :=
   match b with
   | Zero => O
@@ -228,9 +235,61 @@ Fixpoint succp p :=
   
 Fixpoint p2n p :=
   match p with
-  | XH => S O
-  | XC q b => plusn (b2n b) (multn (S( S O)) (p2n q))
+  | XH  => S O
+  | XC q b => plus (b2n b) (mult (S (S O))  (p2n q)) 
   end.
+
+Fact p2n_n n :
+p2n n = match n with
+  | XH  => S O
+  | XC q b => plus (b2n b) (mult (S (S O))  (p2n q)) 
+  end.
+Proof. 
+
+
+
+Fact p2n_not_O p :
+  match p2n p with
+  | O => False
+  | S _ => True
+  end.
+Proof.
+  induction p as [ | q IH b ].
+  + now simpl.
+  + simpl.
+    destruct b.
+    * simpl.
+      destruct (p2n q).
+      - easy.
+      - simpl. easy.
+   * simpl. easy.
+Qed.
+
+ Definition Sp2n p :=
+  match p with
+  | None => O
+  | Some x => p2n x
+  end.
+
+Fact Sp2n_n n :
+Sp2n n = match n with
+  | None => O
+  | Some x => p2n x
+  end.
+Proof.
+unfold Sp2n at 1.
+easy.
+Qed.
+
+(* Fixpoint p2n p :=
+  match p with
+  | None => O
+  | Some XH => S O
+  | Some (XC q b) => match p2n (Some (XC q b)) with
+     | O => O
+     | x => plusn (b2n b) (multn (S( S O)) x)
+     end
+  end. *)
 
 Fact succp_spec p : p2n (succp p) = S (p2n p).
 Proof.
@@ -394,6 +453,44 @@ Check n2p_n.
 
 Opaque n2p.
 
+Fact div2_invert_injective r s p q : plusn (b2n r) (multn 2 p) = plusn (b2n s) (multn 2 q) -> r = s /\ p = q.
+Admitted.
+
+Fact div2_invert q r : (q,r) = div2 (plusn (b2n r) (multn 2 q)).
+Proof.
+  induction q as [ | q IH ] in r |- *.
+  + destruct r; simpl; auto.
+  + assert (plusn (b2n r) (multn 2 (S q)) = S (S (plusn (b2n r) (multn 2 q)))) as E.
+    * simpl. rewrite !plusn_comm_S. trivial. 
+    * rewrite E; unfold div2; fold div2.
+      now rewrite <- IH.
+Qed.
+
+
+Fact inverse_n2p_p2n x : n2p (Sp2n x) = x.
+Proof.
+  destruct x as [ p | ].
+  - induction p as [ | x' IH q].
+    + simpl. apply n2p_SO.
+    + simpl. rewrite n2p_n.
+    rewrite plusn_Or.
+    rewrite lien_mult_add_2.
+    rewrite multn_comm.
+    rewrite <- div2_invert. simpl in IH. rewrite IH. generalize (p2n_not_O x'). destruct (p2n x').
+      * easy.
+      * trivial.
+  - simpl. apply n2p_O.
+Qed.
+
+Fact inverse_p2n_n2p x : Sp2n (n2p x) = x.
+Proof.
+  destruct x.
+  + easy.
+  + induction x as [ | x' IH ].
+    * easy.
+    * rewrite Sp2n_n. rewrite Sp2n_n in IH. 
+
+
 
 Definition addpb p b :=
   match b with 
@@ -434,8 +531,7 @@ Definition addbin x y c :=
   | (BP a, BZ)   => BP (addpb a c) 
   | (BP a, BP b) => BP (addp a b c)
   end.
-  
-Fact 
+
 
 
 
