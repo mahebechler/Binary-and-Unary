@@ -297,17 +297,17 @@ Definition not_O n := match n with O => False | S _ => True end.
 Definition n2p_pwc n : not_O n -> { o | n2p_graph n o }.
 Proof.
   induction n as [ n IHn ] using (well_founded_induction lt_wf).
-  generalize (div2_spec n); intros H1 H2.
-  case_eq (div2 n); intros q r E.
-  rewrite E in H1.
-  + case_eq q.
-    * intros ->; destruct r; simpl in H1; subst.
-      - destruct H2.
-      - exists XH; constructor; trivial.
-    * intros q' Hq'; destruct (IHn q) as [ o Ho ].
-      - subst; lia.
-      - subst; red; trivial.
-      - subst; exists (XC o r); constructor 2 with q'; auto.
+  generalize (div2_spec n).
+  case_eq (div2 n); intros q r E H1 H2.
+  case_eq q.
+  + intros ->; destruct r; simpl in H1; subst.
+    * easy.
+    * exists XH; now constructor.
+  + intros q' Hq'.
+    refine (let (o,ho) := IHn q _ _ in exist _ (XC o r) _); subst.
+    * lia.
+    * exact I.
+    * constructor 2 with q'; auto.
 Qed.
 
 Require Import Extraction.
@@ -394,6 +394,8 @@ Qed.
 
 Extraction Inline n2p_pwc.
 Recursive Extraction n2b b2n.
+
+(*
 
 Fixpoint n2p_fuel n c :=
   match c with
@@ -538,6 +540,7 @@ Check n2p_n.
 
 Opaque n2p.
 
+*)
 
 Definition addpb p b :=
   match b with 
@@ -545,6 +548,19 @@ Definition addpb p b :=
   | One  => succp p
   end.
 
+Check addpb.
+
+Fact succp_p2n p : p2n (succp p) = S (p2n p).
+Proof.
+  induction p as [ | p IH [] ]; simpl; auto.
+  now rewrite IH, !plusn_Or, plusn_comm_S; simpl.
+Qed.
+
+Fact addpb_p2n p b : p2n (addpb p b) = bit2n b + p2n p.
+Proof.
+  destruct b; simpl; trivial.
+  apply succp_p2n.
+Qed.
 
 Fixpoint addp x y c :=
   match (x,y) with
@@ -563,9 +579,29 @@ Fixpoint addp x y c :=
     => let (r,s) := addb One b c in 
        let pqr := addpb q r
        in XC pqr s
-       end. 
+       end.
+       
+Fact addp_p2n x y c : p2n (addp x y c) = bit2n c + p2n x + p2n y.
+Proof.
+  induction x as [ | p IHp a ] in y, c |- *; destruct y as [ | q b ]; simpl.
+  + destruct c; simpl; auto.
+  + destruct b; destruct c; simpl; auto;
+      rewrite !plusn_Or, !succp_p2n, !plusn_comm_S; auto.
+  + destruct a; destruct c; simpl; auto;
+      rewrite !plusn_Or, (plusn_comm _ 1).
+    * easy.
+    * rewrite !succp_p2n, !plusn_comm_S; auto.
+    * rewrite !succp_p2n, !plusn_comm_S; auto.
+    * rewrite !succp_p2n, !plusn_comm_S; auto.
+  + case_eq (addb a b c); intros r s E.
+    specialize (IHp q r).
+    simpl; rewrite IHp.
+    destruct a; destruct b; destruct c; cbv in E; simpl; inversion E; subst; simpl;
+      rewrite !plusn_Or; auto.
+    all: lia.
+Qed.
 
-Definition b2b x :=
+Definition bit2b x :=
   match x with
   | Zero => BZ
   | One  => BP XH
@@ -573,13 +609,22 @@ Definition b2b x :=
 
 Definition addbin x y c :=
   match (x,y) with
-  | (BZ, BZ)     => b2b c 
+  | (BZ, BZ)     => bit2b c 
   | (BZ, BP b)   => BP (addpb b c)
   | (BP a, BZ)   => BP (addpb a c) 
   | (BP a, BP b) => BP (addp a b c)
   end.
-  
-Fact 
+
+Fact addbin_b2n x y c : b2n (addbin x y c) = bit2n c + b2n x + b2n y.
+Proof.
+  revert x y; intros [ | a ] [ | b ]; simpl.
+  + unfold addbin; destruct c; simpl; auto.
+  + now rewrite addpb_p2n, plusn_Or.
+  + now rewrite addpb_p2n, plusn_Or.
+  + now rewrite addp_p2n.
+Qed.
+
+
 
 
 
