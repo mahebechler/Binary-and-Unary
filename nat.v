@@ -231,7 +231,7 @@ Inductive pos := XH | XC : pos -> bit -> pos.
 
 Inductive bin := BZ | BP : pos -> bin.
 
-Definition addb a b c := 
+Definition addbit a b c := 
   match (a, b, c) with
   | (Zero, Zero, Zero) => (Zero, Zero)
   | (Zero, Zero, One) => (Zero, One)
@@ -308,7 +308,7 @@ Proof.
     * lia.
     * exact I.
     * constructor 2 with q'; auto.
-Qed.
+Defined.
 
 Require Import Extraction.
 
@@ -565,18 +565,18 @@ Qed.
 Fixpoint addp x y c :=
   match (x,y) with
   |(XC p a, XC q b)
-    => let (r,s) := addb a b c in
+    => let (r,s) := addbit a b c in
        let pqr := addp p q r
        in XC pqr  s
   |(XH, XH)
-    => let (_,s) := addb One One c
+    => let (_,s) := addbit One One c
        in XC XH s 
   |(XC p a, XH)
-    => let (r,s) := addb a One c in
+    => let (r,s) := addbit a One c in
        let pqr := addpb p r 
        in XC pqr s
   |(XH, XC q b)
-    => let (r,s) := addb One b c in 
+    => let (r,s) := addbit One b c in 
        let pqr := addpb q r
        in XC pqr s
        end.
@@ -593,7 +593,7 @@ Proof.
     * rewrite !succp_p2n, !plusn_comm_S; auto.
     * rewrite !succp_p2n, !plusn_comm_S; auto.
     * rewrite !succp_p2n, !plusn_comm_S; auto.
-  + case_eq (addb a b c); intros r s E.
+  + case_eq (addbit a b c); intros r s E.
     specialize (IHp q r).
     simpl; rewrite IHp.
     destruct a; destruct b; destruct c; cbv in E; simpl; inversion E; subst; simpl;
@@ -623,6 +623,70 @@ Proof.
   + now rewrite addpb_p2n, plusn_Or.
   + now rewrite addp_p2n.
 Qed.
+
+Definition addb x y := addbin x y Zero.
+
+Fact addb_b2n x y : b2n (addb x y) = b2n x + b2n y.
+Proof. apply (addbin_b2n _ _ Zero). Qed.
+
+Fact b2n_inj x y : b2n x = b2n y -> x = y.
+Proof. intros H; now rewrite <- (n2b_b2n x), H, n2b_b2n. Qed.
+
+Fact plusn_n2b n m : n2b (n+m) = addb (n2b n) (n2b m).
+Proof.
+  apply b2n_inj.
+  now rewrite addb_b2n, !b2n_n2b.
+Qed.
+
+Definition multbit a b :=
+  match a with
+  | Zero => Zero
+  | One => b 
+  end. 
+
+Fixpoint multp x y :=
+  match x with
+  | XC p Zero => XC (multp p y) Zero
+  | XC p One  => addp y (XC (multp p y) Zero) Zero
+  | XH        => y
+  end.
+  
+Fact multp_p2n x y : p2n (multp x y) = p2n x * p2n y.
+Proof.
+  induction x as [ | p IH [] ]; simpl.
+  + now rewrite plusn_Or.
+  + now rewrite !plusn_Or, IH, !(multn_comm _ (p2n y)), multn_distrib.
+  + rewrite addp_p2n; simpl. 
+    now rewrite !plusn_Or, IH, !(multn_comm _ (p2n y)), multn_distrib.
+Qed.
+
+Definition multb x y :=
+  match x, y with 
+  |  _ ,  BZ   => BZ
+  | BZ ,   _   => BZ
+  | BP x ,BP y => BP (multp x y)
+  end.
+  
+Fact multb_b2n x y : b2n (multb x y) = b2n x * b2n y.
+Proof.
+  revert x y; intros [ | x ] [ | y ]; simpl; auto.
+  apply multp_p2n.
+Qed.
+
+
+  
+  
+  
+Eval compute in n2b 1.  
+
+(* test multp en int 
+   test : int -> int -> int 
+*)
+let test x y=
+  p2i (multp (i2p x) (i2p y));; 
+   
+
+
 
 
 
