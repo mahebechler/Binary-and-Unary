@@ -11,18 +11,20 @@ Fixpoint plusn x y :=
   
 Print Nat.add.
 
-Abbreviation plusn := Nat.add.
+(* Abbreviation plusn := Nat.add. *)
 
+(*
 Check plusn (S O) O.
 Eval compute in (plusn (S O) (S O)).
+*)
 
-Fact plusn_Ol z : plusn O z = z.
+Fact plusn_Ol z : O + z = z.
 Proof.
   simpl.
   trivial.
 Qed.
 
-Fact plusn_Or z : plusn z O = z.
+Fact plusn_Or z : z + O = z.
 Proof.
   induction z as [ | n IH ].
   + simpl.
@@ -32,7 +34,7 @@ Proof.
     trivial.
 Qed.
 
-Fact plusn_comm_S x y : plusn x (S y) = S (plusn x y).
+Fact plusn_comm_S x y : x + (S y) = S (x + y).
 Proof. 
   induction x as [ | x IH ].
   + simpl; trivial.
@@ -41,7 +43,7 @@ Proof.
     trivial.
 Qed.  
 
-Fact plusn_comm x y : plusn x y = plusn y x.
+Fact plusn_comm x y : x + y = y + x.
 Proof.
   induction x as [ | x IH ].
   + simpl.
@@ -52,7 +54,7 @@ Proof.
     trivial.
 Qed.
 
-Fact plusn_assoc x y z : plusn (plusn x y) z = plusn x (plusn y z).
+Fact plusn_assoc x y z : (x + y) + z = x + (y + z).
 Proof.
   induction x as [ | x IH ].
   + simpl.
@@ -68,18 +70,19 @@ Fixpoint multn x y :=
   | S x' => plusn y (multn x' y)
   end.
 *)
-
+(*
 Abbreviation multn := Nat.mul.
 
 Print multn.
+*)
 
-Fact absorb_element_Ol m : multn O m = O.
+Fact absorb_element_Ol m : O*m = O.
 Proof.
   simpl.
   trivial.
 Qed.
 
-Fact absorb_element_Or m : multn m O = O.
+Fact absorb_element_Or m : m*O = O.
 Proof.
   induction m as [ | m IH ].
   + simpl.
@@ -88,7 +91,7 @@ Proof.
   trivial.
 Qed.
 
-Fact neutral_element_Sr m : multn m (S O) = m.
+Fact neutral_element_Sr m : m*(S O) = m.
 Proof.
   induction m as [ | m IH ].
   + simpl.
@@ -97,14 +100,14 @@ Proof.
   trivial.
 Qed.
 
-Fact neutral_element_Sl m : multn (S O) m = m.
+Fact neutral_element_Sl m : (S O)*m = m.
 Proof.
   simpl. 
   rewrite plusn_Or.
   trivial.
 Qed.
 
-Fact multn_comm_S x y : multn x (S y) = plusn x (multn x y).
+Fact multn_comm_S x y : x*(S y) = x+(x*y).
 Proof. 
   induction x as [ | x IH ].
   + simpl.
@@ -115,7 +118,7 @@ Proof.
     trivial.
 Qed.
 
-Fact multn_comm x y : multn x y = multn y x.
+Fact multn_comm x y : x*y = y*x.
 Proof.
   induction x as [ | x IH ].
   + simpl. 
@@ -127,7 +130,7 @@ Proof.
   trivial.
 Qed.
 
-Fact multn_distrib x y z : multn x (plusn y z) = plusn (multn x y) (multn x z).
+Fact multn_distrib x y z : x*(y+z) = x*y+x*z.
 Proof.
   induction x as [ | x IH ].
   + simpl.
@@ -135,14 +138,13 @@ Proof.
   + simpl.
   rewrite IH.
   rewrite <- !plusn_assoc.
-  rewrite (plusn_comm y (multn x y)).
-  rewrite (plusn_assoc (multn x y) y z ).
-  rewrite (plusn_comm (multn x y) (plusn y z)).
+  rewrite (plusn_comm y (x*y)).
+  rewrite (plusn_assoc (x*y) y z ).
+  rewrite (plusn_comm (x*y) (y+z)).
   trivial.
 Qed.
 
-
-Fact multn_assoc x y z : multn (multn x y) z = multn x (multn y z).
+Fact multn_assoc x y z : (x*y)*z = x*(y*z).
 Proof.
   induction x as [ | x IH ].
   + simpl.
@@ -188,7 +190,7 @@ Definition bit2n b :=
   | One => S O
   end.
 
-Fact div2_spec x : let (q,r) := div2 x in plusn (bit2n r) (multn (S (S O)) q) = x.
+Fact div2_spec x : let (q,r) := div2 x in (bit2n r)+2*q = x.
 Proof.
   induction x as [ | | n IH ] using nat_ind2.
   + simpl.
@@ -205,20 +207,20 @@ Qed.
 
 Require Import Arith Lia.
 
-Fact plusn_multn_S a q : plusn a (multn 2 (S q)) = S (S (plusn a (multn 2 q))).
+Fact plusn_multn_S a q : a+2*(S q) = S (S (a+2*q)).
 Proof. simpl; rewrite !plusn_comm_S; trivial. Qed.
 
-Fact div2_invert q r : (q,r) = div2 (plusn (bit2n r) (multn 2 q)).
+Fact div2_invert q r : (q,r) = div2 (bit2n r + 2*q).
 Proof.
   induction q as [ | q IH ] in r |- *.
   + destruct r; simpl; auto.
-  + assert (plusn (bit2n r) (multn 2 (S q)) = S (S (plusn (bit2n r) (multn 2 q)))) as E.
+  + assert (bit2n r+2*(S q) = S (S (bit2n r+2*q))) as E.
     * lia.
     * rewrite E; unfold div2; fold div2.
       now rewrite <- IH.
 Qed.
 
-Fact div2_inv_inj r p s q : plusn (bit2n r) (multn 2 p) = plusn (bit2n s) (multn 2 q) -> r = s /\ p = q.
+Fact div2_inv_inj r p s q : bit2n r+2*p = bit2n s+2*q -> r = s /\ p = q.
 Proof.
   generalize (div2_invert p r) (div2_invert q s).
   intros E1 E2 H.
@@ -252,12 +254,15 @@ Fixpoint succp p :=
   
 Fixpoint p2n p :=
   match p with
-  | XH => S O
-  | XC q b => plusn (bit2n b) (multn (S( S O)) (p2n q))
+  | XH => 1
+  | XC q b => bit2n b+2*(p2n q)
   end.
   
-Fact p2n_fix q b : p2n (XC q b) = plusn (bit2n b) (multn (S (S O)) (p2n q)).
+Fact p2n_fix q b : p2n (XC q b) = bit2n b+2*(p2n q).
 Proof. trivial. Qed.
+
+Fact p2n_gt_0 p : 0 < p2n p.
+Proof. induction p; simpl; lia. Qed.
 
 Fact succp_spec p : p2n (succp p) = S (p2n p).
 Proof.
@@ -673,11 +678,328 @@ Proof.
   apply multp_p2n.
 Qed.
 
+Inductive diff :=
+  | Neg : pos -> diff
+  | Eq : diff
+  | Pos : pos -> diff.
 
+Definition diffbit a b :=
+  match a, b with
+  | One, Zero => Pos XH
+  | Zero, One => Neg XH
+  | _, _      => Eq
+  end.
   
+Fact diffbit_bit2n a b :
+  match diffbit a b with
+  | Neg d => S (bit2n a) = bit2n b /\ d = XH
+  | Eq    => a = b
+  | Pos d => bit2n a = S (bit2n b) /\ d = XH
+  end.
+Proof.
+  revert a b; intros [] []; now simpl.
+Qed.
+
+Definition not_XH p :=
+  match p with
+  | XH => False
+  | _ => True
+  end.
+
+Fixpoint predp p : not_XH p -> pos.
+Proof.
+  refine (match p return not_XH p -> pos with
+  | XH => fun C => match C with end
+  | XC d Zero => fun _ =>
+    match d as d' return d = d' -> pos with
+    | XH     => fun _ => XH
+    | XC e b => fun E => XC (predp d _) One
+    end eq_refl
+  | XC d One  => fun _ => XC d Zero
+  end).
+  now subst.
+Defined.
+
+Fact predp_fix_0 h : predp (XC XH Zero) h = XH.
+Proof. reflexivity. Qed.
+
+Fact predp_fix_1 p h : predp (XC p One) h = XC p Zero.
+Proof. reflexivity. Qed.
+
+Fact True_pirr (A B : True) : A = B.
+Proof. revert A B; now intros [] []. Qed.
+
+Fact predp_fix_2 p h hp : predp (XC p Zero) h = XC (predp p hp) One.
+Proof.
+  simpl.
+  destruct p.
+  * easy.
+  * do 2 f_equal.
+    apply True_pirr.
+Qed. 
+
+Fact predp_p2n p hp : S (p2n (predp p hp)) = p2n p.
+Proof.
+  induction p as [ | d IH [] ].
+  + easy.
+  + destruct d as [ | d b ]. 
+    * rewrite predp_fix_0; now simpl.
+    * rewrite predp_fix_2 with (p := XC _ _) (hp := I), p2n_fix.
+      simpl bit2n; unfold plus.
+      rewrite p2n_fix, <- (IH I); simpl; lia.
+  + rewrite predp_fix_1; simpl; auto.
+Qed.
+
+Opaque predp.
+
+(*
+
+Inductive predp_graph : pos -> pos -> Prop :=
+| predpg_0 : predp_graph (XC XH Zero) XH
+| predpg_1 d : predp_graph (XC d One) (XC d Zero)
+| predpg_2 d o : not_XH d -> predp_graph d o -> predp_graph (XC d Zero) (XC o One).
+
+Fact predp_fun p r q s : predp_graph p r -> predp_graph q s -> p = q -> r = s.
+Proof.
+  induction 1 as [ | p | p r Hp H1 IH1 ] in q, s |- *;
+    destruct 1 as [ | q | q s Hq H2 ]; auto; try discriminate.
+  + inversion 1; now subst.
+  + now inversion 1.
+  + inversion 1; now subst.
+  + inversion 1; f_equal; eauto.
+Qed.
+
+Definition predp_pwc p : not_XH p -> { o | predp_graph p o }.
+Proof.
+  induction p as [ | p IH [] ].
+  + intros [].
+  + intros _.
+    destruct p as [ | p b ].
+    * exists XH; constructor.
+    * destruct IH as (o & Ho); simpl; auto.
+      exists (XC o One); constructor; simpl; auto.
+  + intros _; exists (XC p Zero); constructor.
+Qed.
+
+Definition predp p hp := proj1_sig (predp_pwc p hp).
+
+Fact predp_spec p hp : predp_graph p (predp p hp).
+Proof. apply (proj2_sig _). Qed.
+
+Fact predp_fix_0 h : predp (XC XH Zero) h = XH.
+Proof. apply predp_fun with (1 := predp_spec _ _) (3 := eq_refl); constructor. Qed.
+
+Fact predp_fix_1 p h : predp (XC p One) h = XC p Zero.
+Proof. apply predp_fun with (1 := predp_spec _ _) (3 := eq_refl); constructor. Qed.
+
+Fact predp_fix_2 p h hp : predp (XC p Zero) h = XC (predp p hp) One.
+Proof.
+  apply predp_fun with (1 := predp_spec _ _) (3 := eq_refl).
+  constructor; simpl; auto; apply predp_spec.
+Qed.
+
+Fact predp_p2n p hp : S (p2n (predp p hp)) = p2n p.
+Proof.
+  generalize (predp p hp) (predp_spec p hp).
+  induction 1 as [ | | d o Hd H IH ].
+  + now simpl.
+  + now simpl.
+  + simpl.
+    rewrite <- IH, <- !plusn_comm_S; auto.
+    rewrite plusn_Or, (plusn_comm _ 2); simpl.
+    now rewrite plusn_comm_S.
+Qed.
+
+*)
+
+Fixpoint diffp p q :=
+  match p, q with
+  | XH, XH => Eq
+  | _ as p', XH  => Pos (predp p' I)
+  | XH, _  as q' => Neg (predp q' I)
+  | XC p a, XC q b =>
+    match diffp p q with
+    | Neg d => Neg (match diffbit b a with
+               | Neg _ => predp (XC d Zero) I
+               | Eq    => XC d Zero
+               | Pos _ => XC d One
+               end)
+    | Eq => diffbit a b
+    | Pos d => Pos (match diffbit a b with
+               | Neg _ => predp (XC d Zero) I
+               | Eq    => XC d Zero
+               | Pos _ => XC d One
+               end)
+    end
+  end.
+
+Fact diffp_p2n p q :
+  match diffp p q with
+  | Neg d => p2n d + p2n p = p2n q
+  | Eq    => p = q
+  | Pos d => p2n p = p2n d + p2n q
+  end.
+Proof.
+  induction p as [ | p IH a ] in q |- *; destruct q as [ | q b ]; auto.
+  + now simpl.
+  + rewrite p2n_fix; simpl diffp; cbv iota.
+    simpl p2n.
+    rewrite (plusn_comm _ 1); simpl plus at 1.
+    rewrite predp_p2n; auto.
+  + rewrite p2n_fix; simpl diffp; cbv iota. 
+    simpl p2n.
+    rewrite (plusn_comm _ 1); simpl.
+    rewrite predp_p2n; simpl; auto.
+  + specialize (IH q).
+    rewrite p2n_fix; simpl diffp; cbv iota.
+    destruct (diffp p q) as [ d1 | | d1 ].
+    * generalize (diffbit_bit2n b a); intros E.
+      destruct (diffbit b a).
+      - apply Nat.succ_inj.
+        rewrite  <- Nat.add_succ_l, predp_p2n.
+        rewrite !p2n_fix.
+        simpl bit2n; lia.
+      - subst.
+        rewrite !p2n_fix; simpl; lia.
+      - rewrite !p2n_fix; simpl; lia.
+    * subst q.
+      rewrite p2n_fix.
+      generalize (diffbit_bit2n a b); intros E.
+      destruct (diffbit a b) as [ d | | d ]; subst; auto.
+      - destruct E; subst; simpl; lia.
+      - destruct E; subst; simpl; lia.
+    * generalize (diffbit_bit2n a b); intros E.
+      destruct (diffbit a b).
+      - apply Nat.succ_inj.
+        rewrite  <- (Nat.add_succ_l (p2n _)), predp_p2n.
+        rewrite !p2n_fix.
+        simpl bit2n; lia.
+      - subst.
+        rewrite !p2n_fix; simpl; lia.
+      - rewrite !p2n_fix; simpl; lia.
+Qed.
+
+Definition diffb x y :=
+  match x, y with
+  | BZ, BZ     => Eq
+  | BZ, BP q   => Neg q
+  | BP p, BZ   => Pos p
+  | BP p, BP q => diffp p q
+  end.
+
+Fact diffb_b2n x y :
+  match diffb x y with
+  | Neg d => p2n d + b2n x = b2n y
+  | Eq    => x = y
+  | Pos d => b2n x = p2n d + b2n y
+  end.
+Proof.
+  revert x y; intros [ | p ] [ | q ]; simpl; auto.
+  generalize (diffp_p2n p q); destruct (diffp p q); intros; subst; auto.
+Qed.
+
+Definition doubleb x :=
+  match x with
+  | BZ   => BZ
+  | BP p => BP (XC p Zero)
+  end.
   
+Fact doubleb_b2n x : b2n (doubleb x) = 2*b2n x.
+Proof. now destruct x. Qed.
+
+Fixpoint divp x d :=
+  match x with
+  | XH => match d with
+          | XH => (BP XH, BZ)
+          | _  => (BZ, BP XH)
+          end
+  | XC p Zero =>
+          let (q,r) := divp p d in
+          let r' := doubleb r in
+          let q' := doubleb q in
+          match diffb r' (BP d) with
+          | Neg _ => (q', r')
+          | Eq    => (addb q' (BP XH),BZ)
+          | Pos k => (addb q' (BP XH),BP k)
+          end
+  | XC p One =>
+          let (q,r) := divp p d in
+          let r' := addb (BP XH) (doubleb r) in
+          let q' := doubleb q in
+          match diffb r' (BP d) with
+          | Neg _ => (q', r')
+          | Eq    => (addb q' (BP XH),BZ)
+          | Pos k => (addb q' (BP XH),BP k)
+          end
+  end.
+
+Fact divp_spec x d : let (q,r) := divp x d in p2n x = b2n q*p2n d + b2n r /\ b2n r < p2n d.
+Proof.
+  induction x as [ | p IH [] ]; simpl.
+  + destruct d; split; simpl; auto.
+    generalize (p2n_gt_0 d); lia. 
+  + destruct (divp p d) as (q,r).
+    generalize (diffb_b2n (doubleb r) (BP d)).
+    destruct IH as [ IH1 IH2 ].
+    destruct (diffb (doubleb r) (BP d)) as [ k | | k ]; intros E; split.
+    * rewrite plusn_Or, !doubleb_b2n.
+      rewrite multn_assoc, <- multn_distrib, <- IH1.
+      simpl; now rewrite plusn_Or.
+    * rewrite doubleb_b2n in E |- *; simpl b2n in E.
+      generalize (p2n_gt_0 k); lia.
+    * rewrite plusn_Or, addb_b2n, doubleb_b2n.
+      apply f_equal with (f := b2n) in E.
+      rewrite doubleb_b2n in E.
+      simpl b2n at 2 in E.
+      rewrite (multn_comm _ (p2n _)), multn_distrib.
+      rewrite !(multn_comm (p2n _)). 
+      rewrite <- E at 2.
+      simpl.
+      rewrite !plusn_Or.
+      rewrite IH1; lia.
+    * apply p2n_gt_0.
+    * rewrite plusn_Or, addb_b2n, doubleb_b2n.
+      rewrite doubleb_b2n in E; simpl in E.
+      simpl b2n.
+      lia.
+    * rewrite doubleb_b2n in E; simpl b2n in E |- *; lia.
+  + destruct (divp p d) as (q,r).
+    generalize (diffb_b2n (addb (BP XH) (doubleb r)) (BP d)).
+    destruct IH as [ IH1 IH2 ].
+    destruct (diffb (addb (BP XH) (doubleb r)) (BP d)) as [ k | | k ]; intros E; split.
+    * rewrite plusn_Or, !doubleb_b2n.
+      rewrite addb_b2n in E |- *.
+      simpl b2n in E |- *.
+      rewrite doubleb_b2n; lia.
+    * rewrite addb_b2n, doubleb_b2n in E |- *; simpl b2n in E |- *.
+      generalize (p2n_gt_0 k); lia.
+    * rewrite plusn_Or, addb_b2n, doubleb_b2n.
+      apply f_equal with (f := b2n) in E.
+      rewrite addb_b2n, doubleb_b2n in E.
+      simpl b2n in E |- *.
+      lia.
+    * apply p2n_gt_0.
+    * rewrite plusn_Or, addb_b2n, doubleb_b2n.
+      rewrite addb_b2n, doubleb_b2n in E.
+      simpl b2n in E |- *.
+      lia.
+    * rewrite addb_b2n, doubleb_b2n in E; simpl b2n in E |- *; lia.
+Qed.
+
+Definition divb x d :=
+  match x with
+  | BZ   => (BZ,BZ)
+  | BP x => divp x d
+  end.
   
-Eval compute in n2b 1.  
+Fact divb_spec x d : let (q,r) := divb x d in b2n x = b2n q*p2n d + b2n r /\ b2n r < p2n d.
+Proof.
+  destruct x as [ | x ]; simpl.
+  + split; auto; apply p2n_gt_0.
+  + apply divp_spec.
+Qed.
+
+Recursive Extraction divb.
 
 (* test multp en int 
    test : int -> int -> int 
