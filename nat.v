@@ -73,6 +73,14 @@ Abbreviation multn := Nat.mul.
 
 Print multn.
 
+Fact plusn_succ n : S n = plus n 1.
+Proof.
+  induction n as [ |  n IH ].
+  + trivial.
+  + rewrite plusn_comm_S, plusn_Or.
+  trivial.
+Qed.
+
 Fact absorb_element_Ol m : multn O m = O.
 Proof.
   simpl.
@@ -128,6 +136,7 @@ Proof.
 Qed.
 
 Fact lien_mult_add_2 n : plusn n n = multn n 2.
+Proof.
   induction n as [ | n IH ].
    + trivial.
    + simpl. rewrite plusn_comm_S, IH.
@@ -210,6 +219,18 @@ Proof.
     split; trivial.
 Qed.
 
+Fact div2_Sn_not_O n :
+match div2 (S n) with
+  | (0,Zero) => False
+  | (_,_) => True
+  end.
+Proof.
+simpl.
+  induction n as [ | n IH ].
+  + easy.
+  + destruct div2. easy.
+Qed.
+
 Inductive pos := XH | XC : pos -> bit -> pos.
 
 Inductive bin := BZ | BP : pos -> bin.
@@ -239,15 +260,6 @@ Fixpoint p2n p :=
   | XC q b => plus (b2n b) (mult (S (S O))  (p2n q)) 
   end.
 
-Fact p2n_n n :
-p2n n = match n with
-  | XH  => S O
-  | XC q b => plus (b2n b) (mult (S (S O))  (p2n q)) 
-  end.
-Proof. 
-
-
-
 Fact p2n_not_O p :
   match p2n p with
   | O => False
@@ -271,14 +283,30 @@ Qed.
   | Some x => p2n x
   end.
 
-Fact Sp2n_n n :
-Sp2n n = match n with
-  | None => O
-  | Some x => p2n x
+Fact p2n_n n :
+p2n n = match n with
+  | XH  => S O
+  | XC q b => plus (b2n b) (mult (S (S O))  (p2n q)) 
   end.
 Proof.
-unfold Sp2n at 1.
-easy.
+ destruct n.
+  + trivial.
+  + simpl.
+  trivial.
+Qed.
+
+Fact Sp2n_n p :
+Sp2n p = match p with
+  | None => O
+  | Some XH  => S O
+  | Some (XC q b) => plus (b2n b) (mult (S (S O))  (p2n q)) 
+  end.
+Proof.
+destruct p.
+  +  induction p as [ | q IH b ].
+     * trivial.
+     * trivial.
+  + trivial.
 Qed.
 
 (* Fixpoint p2n p :=
@@ -445,7 +473,30 @@ Proof.
         lia.
       - destruct H2.
       - destruct H2.
-Qed. 
+Qed.
+
+Section div2_ind.
+
+  Variables (P : nat -> Prop)
+            (HP0 : P 0)
+            (HP1 : P 1)
+            (HPn : forall n, (let (q,r) := div2 n in P q) -> P n).
+            
+  Fact div2_ind n : P n.
+  Proof.
+    induction n as [ n IH ] using (well_founded_induction lt_wf).
+    generalize (div2_lt n) (div2_spec n).
+    case_eq (div2 n).
+    intros q r E [ H1 | H1 ] H2.
+    + destruct r.
+      * subst; simpl in *; apply HP0.
+      * subst; simpl in *; apply HP1.
+    + apply HPn.
+      rewrite E.
+      now apply IH.
+  Qed.
+  
+End div2_ind.
 
 Check n2p_O.
 Check n2p_SO.
@@ -466,6 +517,43 @@ Proof.
       now rewrite <- IH.
 Qed.
 
+From Stdlib Require Import Arith Lia.
+
+Fact n2p_NO n : n2p n = None -> n = O.
+Proof.
+  induction n as [ | | n IH ] using div2_ind; rewrite n2p_n.
+  + now simpl.
+  + discriminate.
+  + generalize (div2_spec n).
+    destruct (div2 n) as (q,r).
+    case_eq q.
+    * intros H1 H2.
+      destruct r.
+      - simpl in H2; now subst.
+      - discriminate.
+    * intros q' Hq.
+      rewrite <- Hq.
+      destruct (n2p q).
+      - discriminate.
+      - rewrite IH in Hq; trivial.
+        discriminate.
+Qed.
+
+Fact n2p_Sn_not_O n :
+match n2p (S n) with 
+  | None => False
+  | Some n => True
+  end.
+Proof.
+  generalize (n2p_NO (S n)).
+  destruct (n2p (S n)).
+  + trivial.
+  + intros C.
+    assert (S n = O) as D.
+    * apply C.
+      trivial.
+    * discriminate.
+Qed.
 
 Fact inverse_n2p_p2n x : n2p (Sp2n x) = x.
 Proof.
@@ -484,13 +572,21 @@ Qed.
 
 Fact inverse_p2n_n2p x : Sp2n (n2p x) = x.
 Proof.
-  destruct x.
-  + easy.
-  + induction x as [ | x' IH ].
-    * easy.
-    * rewrite Sp2n_n. rewrite Sp2n_n in IH. 
-
-
+  induction x as [ | | x IH ] using div2_ind; rewrite n2p_n.
+  + now simpl.
+  + now simpl.
+  + generalize (div2_spec x).
+    destruct (div2 x) as (q,r).
+    intros H2.
+    case_eq q.
+    * intros Hq.
+      destruct r; subst; simpl in *; trivial.
+    * intros q' Hq.
+      rewrite <- Hq.
+      destruct (n2p q).
+      - simpl in *; lia.
+      - subst; simpl in *; discriminate.
+Qed.
 
 Definition addpb p b :=
   match b with 
@@ -498,6 +594,22 @@ Definition addpb p b :=
   | One  => succp p
   end.
 
+Fact addbp_p2n p b : p2n (addpb p b) = p2n p + b2n b.
+Proof.
+induction p as [ | p IH q].
+  + destruct b.
+    * now simpl.
+    * now simpl.
+  + destruct b.
+    * simpl. lia.
+    * simpl. generalize (succp_spec p). destruct (succp p).
+      - intros H1. destruct q.
+        ++ simpl. lia.
+        ++ simpl. simpl in H1. lia.
+      - intros H1. destruct q.
+        ++ simpl. lia.
+        ++ simpl. simpl in H1. lia.
+Qed.
 
 Fixpoint addp x y c :=
   match (x,y) with
@@ -518,11 +630,24 @@ Fixpoint addp x y c :=
        in XC pqr s
        end. 
 
+Fact addp_p2n x y c : p2n ( addp x y c ) = p2n x + p2n y + b2n c.
+Proof.
+    induction x as [ | x IHx ] in y, c |- *.
+    + simpl. destruct y; simpl.
+      * destruct c. 
+        - now simpl.
+        - now simpl.
+      * destruct c; destruct b; simpl; simpl; try rewrite succp_spec; lia.
+    + simpl. destruct y; simpl.
+      * destruct c ; destruct b; simpl; try rewrite succp_spec; lia.
+      * destruct b; destruct b0 ; destruct c; simpl; rewrite IHx; simpl; lia. 
+Qed.
+
 Definition b2b x :=
   match x with
   | Zero => BZ
   | One  => BP XH
-  end.
+  end. 
 
 Definition addbin x y c :=
   match (x,y) with
@@ -530,8 +655,197 @@ Definition addbin x y c :=
   | (BZ, BP b)   => BP (addpb b c)
   | (BP a, BZ)   => BP (addpb a c) 
   | (BP a, BP b) => BP (addp a b c)
+  end. 
+
+Definition multb a b :=
+  match a with
+  | Zero => Zero
+  | One => b 
   end.
 
+Fixpoint multp x y :=
+  match x with
+  | XC p Zero  => XC ( multp p y )  Zero
+  | XC p  One  => addp y (XC (multp p y) Zero)  Zero 
+  | XH         => y 
+  end. 
+
+Fact multp_p2n x y : p2n (multp x y) = p2n x * p2n y.
+Proof.
+induction x as [ | x IH ] in y |- *.
+  + destruct y.
+    * trivial.
+    * easy.
+  + destruct y.
+    * destruct b; simpl; try rewrite IH; simpl; lia.
+    * destruct b; destruct b0.
+       -  simpl; try rewrite IH. simpl. lia.
+       -  simpl; try rewrite IH. simpl. lia.
+       - simpl. rewrite addp_p2n. rewrite  IH. simpl. lia.
+       - simpl. rewrite addp_p2n. rewrite  IH. simpl. lia.
+Qed.
+
+Inductive diff := Neg : pos -> diff | Eq | Pos : pos -> diff.
+
+Definition diffb a b :=
+  match (a, b) with
+  | (One, Zero)  => Pos XH
+  | (Zero, One) => Neg XH
+  | (_, _)      => Eq
+  end.
+
+Definition d2n n :=
+  match n with
+  | Pos n => match n with
+                | XH  => S O
+                | XC q b => plus (b2n b) (mult (S (S O))  (p2n q))
+                end
+  | Neg n => match n with
+                | XH  => S O
+                | XC q b => plus (b2n b) (mult (S (S O))  (p2n q))
+                end
+  | Eq => O
+  end.
+
+Print Nat.sub.
+
+Fixpoint subn n m :=
+    match n with
+  | 0 => m
+  | S k => match m with
+           | 0 => n
+           | S l => subn k l
+           end
+  end.
+
+Fact diffb'_b2n a b : d2n (diffb a b) = subn (b2n a) (b2n b).
+Proof.
+  destruct a.
+   + destruct b.
+     * now simpl.
+     * now simpl.
+   + destruct b.
+     * now simpl.
+     * now simpl.
+Qed.
+
+Fact diffb_b2n a b :
+  match diffb a b with
+  | Neg d => S (b2n a) = b2n b /\ d = XH
+  | Eq    => a = b
+  | Pos d => b2n a = S (b2n b) /\ d = XH
+  end.
+Proof.
+  destruct a;  destruct b ;now simpl.
+Qed.
+
+Print diffb_b2n.
+
+Definition not_XH p :=
+  match p with
+  | XH => False
+  | _  => True
+  end.
+
+Fixpoint predp p : not_XH p -> pos.
+Proof.
+  case_eq p.
+  + intros; simpl.
+    exfalso.
+    easy.
+  + intros d [] Hp _.
+    * case_eq d.
+      - intros Hd.
+        exact XH.
+      - intros q b Hd.
+        apply XC.
+        ++ apply (predp d).
+           rewrite Hd.
+           simpl; trivial.
+        ++ exact One.
+    * exact (XC d Zero).
+Defined.
+
+Fact predp_p2n p hp : S (p2n (predp p hp)) = p2n p.
+Proof.
+  induction p as [ | d IH [] ]; simpl.
+  + simpl in hp; easy.
+  + destruct d as [ | q b ].
+    * simpl; trivial.
+    * rewrite p2n_n.
+      specialize (IH (@eq_ind_r _ (XC _ _) (fun d => not_XH d) I _ eq_refl)).
+      rewrite <- IH.
+      simpl b2n; lia.
+  + trivial.
+Qed.
+
+Require Import Extraction.
+     
+
+Fixpoint predp' x :=
+  match x with
+  | ( XC d One )  => Some ( XC d Zero )
+  | ( XC XH Zero) => Some XH
+  | ( XC d Zero ) => match predp' d with 
+                         | Some p => Some ( XC p Zero )
+                         | None => None 
+                         end
+  |   XH          => None
+  end.
+  
+Recursive Extraction predp predp'.
+
+Fixpoint diffp x y :=
+  match x, y with
+  | XH, XH               => Eq
+  | XC _ _ as x', XH     => Pos (predp x' I)
+  | XH, XC _ _ as y'     => Neg (predp y' I)
+  | XC p a, XC q b =>
+        match diffp p q with
+        | Neg d => Neg match diffb b a with
+                      | Neg _ => predp (XC d Zero) I
+                      | Eq    => XC d Zero
+                      | Pos _ => XC d One
+                       end
+        | Eq    => diffb a b
+        | Pos d => Pos match diffb a b with
+                      | Neg _ => predp (XC d Zero) I
+                      | Eq    => XC d Zero
+                      | Pos _ => XC d One
+                      end
+         end
+  end.
+  
+Opaque predp.
+
+Fact diffp_p2n x y :
+  match diffp x y with
+  | Neg d => p2n d + p2n x = p2n y
+  | Eq => x = y
+  | Pos d => p2n x = p2n d + p2n y
+  end.
+Proof.
+  induction x as [ | x IH q ] in y |-*.
+    + case_eq y.
+      * easy.
+      * intros p b IHy. 
+        simpl.
+        rewrite plusn_comm.
+        simpl.
+        rewrite predp_p2n.
+        simpl. trivial.
+    + case_eq y.
+      * simpl. rewrite (plusn_comm (p2n (predp (XC x q) I)) 1).
+        simpl.
+        rewrite predp_p2n.
+        simpl. trivial.
+      * simpl. 
+        intros p b IHy.
+        destruct diffp.
+          -   generalize (diffb_b2n b q). destruct (diffb b q).
+            ++ intros [ H1 H2 ]. rewrite <- H1. simpl. rewrite plusn_comm_S. admit.
+            ++ intros H1. simpl. rewrite H1. 
+Admitted.
 
 
 
